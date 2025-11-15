@@ -1,0 +1,73 @@
+{{- if .Values.inferenceServer.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "threat-detector.fullname" . }}
+  labels:
+    {{- include "threat-detector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-server
+spec:
+  {{- if not .Values.inferenceServer.autoscaling.enabled }}
+  replicas: {{ .Values.inferenceServer.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "threat-detector.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: inference-server
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.inferenceServer.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "threat-detector.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: inference-server
+    spec:
+      {{- with .Values.inferenceServer.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "threat-detector.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      initContainers:
+        {{- toYaml .Values.initContainers | nindent 8 }}
+      containers:
+        - name: inference-server
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.inferenceServer.image.repository }}:{{ .Values.inferenceServer.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.inferenceServer.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.inferenceServer.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.inferenceServer.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.inferenceServer.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.inferenceServer.resources | nindent 12 }}
+          env:
+            {{- toYaml .Values.inferenceServer.env | nindent 12 }}
+          envFrom:
+            {{- toYaml .Values.inferenceServer.envFrom | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.inferenceServer.volumeMounts | nindent 12 }}
+      volumes:
+        {{- toYaml .Values.inferenceServer.volumes | nindent 8 }}
+      {{- with .Values.inferenceServer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.inferenceServer.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.inferenceServer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

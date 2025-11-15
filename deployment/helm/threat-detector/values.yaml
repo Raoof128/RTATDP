@@ -1,0 +1,343 @@
+# Default values for threat-detector Helm chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  environment: production
+  storageClass: standard
+
+# Inference Server configuration
+inferenceServer:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: threat-detector/inference-server
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    annotations: {}
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/rate-limit: "100"
+    hosts:
+      - host: threat-detector.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: threat-detector-tls
+        hosts:
+          - threat-detector.example.com
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8000
+    initialDelaySeconds: 20
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  env:
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: ENVIRONMENT
+      value: "production"
+    - name: WORKERS
+      value: "4"
+
+  envFrom:
+    - configMapRef:
+        name: threat-detector-config
+    - secretRef:
+        name: threat-detector-secrets
+
+  volumes:
+    - name: models
+      persistentVolumeClaim:
+        claimName: threat-detector-models
+
+  volumeMounts:
+    - name: models
+      mountPath: /app/models
+      readOnly: true
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - threat-detector
+            topologyKey: kubernetes.io/hostname
+
+# Kafka Consumer configuration
+kafkaConsumer:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: threat-detector/kafka-consumer
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  env:
+    - name: KAFKA_CONSUMER_GROUP
+      value: "threat-detector-consumer-group"
+    - name: KAFKA_AUTO_OFFSET_RESET
+      value: "earliest"
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+# Configuration
+config:
+  kafka:
+    bootstrapServers: "kafka:9092"
+    topics:
+      network: "security.events.network"
+      endpoint: "security.events.endpoint"
+      application: "security.events.application"
+    partitions: 10
+    replicationFactor: 3
+
+  redis:
+    host: "redis-master"
+    port: 6379
+    db: 0
+    ttl: 3600
+
+  models:
+    ensemblePath: "/app/models/ensemble"
+    anomalyPath: "/app/models/anomaly"
+    threshold: 0.5
+
+  api:
+    workers: 4
+    timeout: 30
+    maxBatchSize: 100
+
+# Secrets (use external secrets manager in production)
+secrets:
+  existingSecret: ""  # Name of existing secret
+  # If existingSecret is not provided, create from these values
+  redisPassword: ""
+  kafkaPassword: ""
+  databasePassword: ""
+  splunkToken: ""
+  thehiveApiKey: ""
+
+# Persistent storage
+persistence:
+  enabled: true
+  storageClass: "standard"
+  accessMode: ReadWriteMany
+  size: 10Gi
+  annotations: {}
+
+# Redis dependency
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    password: "changeme"
+  master:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    persistence:
+      enabled: true
+      size: 8Gi
+
+# Kafka dependency
+kafka:
+  enabled: true
+  replicaCount: 3
+  auth:
+    enabled: false
+  zookeeper:
+    enabled: true
+    replicaCount: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  persistence:
+    enabled: true
+    size: 20Gi
+
+# Prometheus monitoring
+prometheus:
+  enabled: true
+  server:
+    retention: "15d"
+    persistentVolume:
+      enabled: true
+      size: 50Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+  alertmanager:
+    enabled: true
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by: ['alertname', 'severity']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 12h
+        receiver: 'default'
+      receivers:
+        - name: 'default'
+          # Configure your notification channels here
+  serverFiles:
+    alerting_rules.yml:
+      groups: []  # Load from external file
+
+# Grafana dashboards
+grafana:
+  enabled: true
+  adminPassword: "changeme"
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: 'Security'
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards
+  dashboards:
+    default: {}  # Load from external files
+
+# ServiceMonitor for Prometheus Operator
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels:
+    release: prometheus
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+
+# Security Context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Pod Security Policy
+podSecurityPolicy:
+  enabled: false
+
+# RBAC
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    name: threat-detector
+    annotations: {}
+
+# Init Containers
+initContainers:
+  - name: wait-for-redis
+    image: busybox:1.35
+    command: ['sh', '-c', 'until nc -z redis-master 6379; do echo waiting for redis; sleep 2; done']
+  - name: wait-for-kafka
+    image: busybox:1.35
+    command: ['sh', '-c', 'until nc -z kafka 9092; do echo waiting for kafka; sleep 2; done']
+
+# Extra manifests to deploy
+extraManifests: []

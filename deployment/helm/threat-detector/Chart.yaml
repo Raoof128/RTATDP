@@ -1,0 +1,39 @@
+apiVersion: v2
+name: threat-detector
+description: A Helm chart for AI Threat Detection Pipeline
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - security
+  - ai
+  - threat-detection
+  - machine-learning
+  - cybersecurity
+home: https://github.com/your-org/threat-detector
+sources:
+  - https://github.com/your-org/threat-detector
+maintainers:
+  - name: Security Team
+    email: security@example.com
+icon: https://example.com/threat-detector-icon.png
+dependencies:
+  - name: redis
+    version: "^17.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: kafka
+    version: "^23.0.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: kafka.enabled
+  - name: prometheus
+    version: "^15.0.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: grafana
+    version: "^6.0.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
+annotations:
+  category: Security
+  licenses: Apache-2.0

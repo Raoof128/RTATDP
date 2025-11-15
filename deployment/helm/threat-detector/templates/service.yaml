@@ -1,0 +1,23 @@
+{{- if .Values.inferenceServer.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "threat-detector.fullname" . }}
+  labels:
+    {{- include "threat-detector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-server
+  {{- with .Values.inferenceServer.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.inferenceServer.service.type }}
+  ports:
+    - port: {{ .Values.inferenceServer.service.port }}
+      targetPort: {{ .Values.inferenceServer.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "threat-detector.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: inference-server
+{{- end }}

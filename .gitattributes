@@ -1,0 +1,104 @@
+# Git attributes for AI Threat Detection Pipeline
+
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source code
+*.py text eol=lf diff=python
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# Configuration files
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+
+# Docker
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+.dockerignore text eol=lf
+
+# CI/CD
+.github/**/* text eol=lf
+.gitlab-ci.yml text eol=lf
+*.jenkinsfile text eol=lf
+
+# Templates
+*.tpl text eol=lf
+*.template text eol=lf
+
+# Binary files
+*.pkl binary
+*.pickle binary
+*.joblib binary
+*.h5 binary
+*.hdf5 binary
+*.pb binary
+*.onnx binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+
+# Data files
+*.csv text eol=lf
+*.tsv text eol=lf
+*.parquet binary
+*.arrow binary
+
+# Jupyter notebooks
+*.ipynb text eol=lf linguist-documentation
+
+# Export diff for notebooks
+*.ipynb diff=jupyternotebook
+
+# Vendor files (exclude from language stats)
+vendor/** linguist-vendored
+node_modules/** linguist-vendored
+*.min.js linguist-vendored
+*.min.css linguist-vendored
+
+# Generated files
+*-lock.json linguist-generated=true
+package-lock.json linguist-generated=true
+yarn.lock linguist-generated=true
+poetry.lock linguist-generated=true
+
+# Test files
+*_test.py linguist-generated=false
+test_*.py linguist-generated=false
+
+# Line ending normalization
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Force binary for model files
+models/**/*.pkl binary
+models/**/*.joblib binary
+models/**/*.h5 binary

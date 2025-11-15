@@ -1,0 +1,265 @@
+groups:
+  - name: threat_detection_critical
+    interval: 30s
+    rules:
+      - alert: InferenceAPIDown
+        expr: up{job="inference-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Inference API is down"
+          description: "The inference server at {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.threat-detector.local/runbooks/api-down"
+
+      - alert: HighAPIErrorRate
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[5m])) /
+           sum(rate(http_requests_total[5m]))) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/high-error-rate"
+
+      - alert: ModelNotLoaded
+        expr: models_loaded{type=~"ensemble|anomaly"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: ml-models
+        annotations:
+          summary: "ML models not loaded"
+          description: "{{ $labels.type }} model is not loaded on {{ $labels.instance }}."
+          runbook_url: "https://docs.threat-detector.local/runbooks/models-not-loaded"
+
+      - alert: ExtremeLowAccuracy
+        expr: model_accuracy < 0.70
+        for: 10m
+        labels:
+          severity: critical
+          component: ml-models
+        annotations:
+          summary: "Model accuracy critically low"
+          description: "Model accuracy has dropped to {{ $value | humanizePercentage }} (threshold: 70%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/low-accuracy"
+
+      - alert: KafkaConsumerDown
+        expr: kafka_consumer_running == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: data-pipeline
+        annotations:
+          summary: "Kafka consumer not running"
+          description: "Kafka consumer on {{ $labels.instance }} has stopped."
+          runbook_url: "https://docs.threat-detector.local/runbooks/kafka-consumer-down"
+
+  - name: threat_detection_warning
+    interval: 60s
+    rules:
+      - alert: HighInferenceLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(inference_latency_seconds_bucket[5m])) by (le)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High inference latency detected"
+          description: "P95 inference latency is {{ $value | humanizeDuration }} (threshold: 100ms)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/high-latency"
+
+      - alert: LowModelAccuracy
+        expr: model_accuracy < 0.90
+        for: 15m
+        labels:
+          severity: warning
+          component: ml-models
+        annotations:
+          summary: "Model accuracy below target"
+          description: "Model accuracy is {{ $value | humanizePercentage }} (target: 90%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/low-accuracy"
+
+      - alert: HighFalsePositiveRate
+        expr: false_positive_rate > 0.05
+        for: 15m
+        labels:
+          severity: warning
+          component: ml-models
+        annotations:
+          summary: "High false positive rate"
+          description: "False positive rate is {{ $value | humanizePercentage }} (threshold: 5%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/high-fp-rate"
+
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag{topic=~"security.events.*"} > 10000
+        for: 10m
+        labels:
+          severity: warning
+          component: data-pipeline
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag for {{ $labels.topic }} partition {{ $labels.partition }} is {{ $value }} messages."
+          runbook_url: "https://docs.threat-detector.local/runbooks/kafka-lag"
+
+      - alert: LowCacheHitRate
+        expr: |
+          rate(redis_cache_hits[5m]) /
+          (rate(redis_cache_hits[5m]) + rate(redis_cache_misses[5m])) < 0.70
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (target: 70%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/low-cache-hit-rate"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes{job="inference-server"} /
+           machine_memory_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}."
+          runbook_url: "https://docs.threat-detector.local/runbooks/high-memory"
+
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="inference-server"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}."
+          runbook_url: "https://docs.threat-detector.local/runbooks/high-cpu"
+
+  - name: threat_detection_info
+    interval: 120s
+    rules:
+      - alert: ThreatVolumeSpike
+        expr: |
+          (sum(rate(ai_detector_alerts_total{severity=~"high|critical"}[5m])) /
+           sum(rate(ai_detector_alerts_total{severity=~"high|critical"}[5m] offset 1h))) > 2
+        for: 10m
+        labels:
+          severity: info
+          component: detection
+        annotations:
+          summary: "Spike in high-severity threats detected"
+          description: "High-severity threat volume is {{ $value }}x higher than 1 hour ago."
+          runbook_url: "https://docs.threat-detector.local/runbooks/threat-spike"
+
+      - alert: UnusualThreatPattern
+        expr: |
+          sum(rate(ai_detector_alerts_total{threat_type!=""}[15m])) by (threat_type) >
+          avg_over_time(sum(rate(ai_detector_alerts_total{threat_type!=""}[15m])) by (threat_type)[1h:]) * 3
+        for: 15m
+        labels:
+          severity: info
+          component: detection
+        annotations:
+          summary: "Unusual threat pattern detected"
+          description: "{{ $labels.threat_type }} threats are 3x higher than normal."
+          runbook_url: "https://docs.threat-detector.local/runbooks/unusual-pattern"
+
+      - alert: ModelDrift
+        expr: abs(model_accuracy - model_accuracy offset 24h) > 0.05
+        for: 30m
+        labels:
+          severity: info
+          component: ml-models
+        annotations:
+          summary: "Potential model drift detected"
+          description: "Model accuracy has changed by {{ $value | humanizePercentage }} in 24 hours."
+          runbook_url: "https://docs.threat-detector.local/runbooks/model-drift"
+
+      - alert: LowEventVolume
+        expr: rate(events_processed_total[5m]) < 100
+        for: 15m
+        labels:
+          severity: info
+          component: data-pipeline
+        annotations:
+          summary: "Low event processing volume"
+          description: "Processing only {{ $value }} events/sec (expected: >100/sec)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/low-event-volume"
+
+  - name: integrations
+    interval: 120s
+    rules:
+      - alert: SplunkExportFailing
+        expr: rate(splunk_export_errors_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: integrations
+        annotations:
+          summary: "Splunk export failing"
+          description: "Splunk export error rate: {{ $value }} errors/sec."
+          runbook_url: "https://docs.threat-detector.local/runbooks/splunk-export-failure"
+
+      - alert: TheHiveIntegrationDown
+        expr: thehive_case_creation_errors_total > 10
+        for: 15m
+        labels:
+          severity: warning
+          component: integrations
+        annotations:
+          summary: "TheHive integration failures"
+          description: "{{ $value }} case creation errors in the last 15 minutes."
+          runbook_url: "https://docs.threat-detector.local/runbooks/thehive-integration-down"
+
+  - name: sla_compliance
+    interval: 300s
+    rules:
+      - alert: SLAViolation_Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(inference_latency_seconds_bucket[1h])) by (le)
+          ) > 0.1
+        for: 1h
+        labels:
+          severity: critical
+          component: sla
+        annotations:
+          summary: "SLA violation: P95 latency exceeded"
+          description: "P95 latency is {{ $value | humanizeDuration }} over 1 hour (SLA: <100ms)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/sla-violation"
+
+      - alert: SLAViolation_Availability
+        expr: |
+          (sum(rate(http_requests_total{status!~"5.."}[1h])) /
+           sum(rate(http_requests_total[1h]))) < 0.999
+        for: 1h
+        labels:
+          severity: critical
+          component: sla
+        annotations:
+          summary: "SLA violation: Availability below target"
+          description: "API availability is {{ $value | humanizePercentage }} (SLA: >99.9%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/sla-violation"
+
+      - alert: SLAViolation_Accuracy
+        expr: avg_over_time(model_accuracy[24h]) < 0.95
+        for: 1h
+        labels:
+          severity: critical
+          component: sla
+        annotations:
+          summary: "SLA violation: Model accuracy below target"
+          description: "24h average accuracy is {{ $value | humanizePercentage }} (SLA: >95%)."
+          runbook_url: "https://docs.threat-detector.local/runbooks/sla-violation"
