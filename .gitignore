@@ -1,0 +1,106 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Models
+models/**/*.pkl
+models/**/*.joblib
+models/**/*.h5
+models/**/*.onnx
+!models/.gitkeep
+
+# Data
+data/
+*.csv
+*.parquet
+*.json.gz
+!data/.gitkeep
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+secrets/
+
+# Monitoring
+grafana/data/
+prometheus/data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Security
+*.pem
+*.key
+*.crt
+credentials.json
+secrets.yaml

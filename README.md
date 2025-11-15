@@ -45,29 +45,76 @@ Raw Events → Kafka Topics
 
 - Python 3.11+
 - Docker & Docker Compose
-- Kubernetes cluster (for production deployment)
-- Apache Kafka cluster
-- Redis instance
+- 8GB RAM minimum (16GB recommended)
 
-### Local Development Setup
+### Automated Setup (Recommended)
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/ai-threat-detector.git
-cd ai-threat-detector
+git clone <repository-url>
+cd RTATDP
 
-# Create virtual environment
+# Run quick start script (starts all services)
+bash scripts/quick_start.sh
+
+# Wait for services to initialize, then check health
+bash scripts/health_check.sh
+```
+
+After running the quick start script, services will be available at:
+- **API Documentation**: http://localhost:8000/docs
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (login: admin/admin)
+
+### Manual Setup
+
+```bash
+# 1. Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Run tests
-pytest tests/ -v
+# 3. Start infrastructure services
+docker-compose up -d
 
-# Start inference server (development mode)
-uvicorn src.inference_server.api:app --reload
+# 4. Run tests
+make test
+
+# 5. Start inference server
+make serve
+```
+
+### Example Usage
+
+```python
+import requests
+
+# Sample network event
+event = {
+    "event_id": "evt-12345",
+    "source_system": "zeek",
+    "source_ip": "192.168.1.100",
+    "destination_ip": "8.8.8.8",
+    "source_port": 54321,
+    "destination_port": 53,
+    "protocol": "dns",
+    "bytes_sent": 512,
+    "bytes_received": 1024,
+    "dns_query": "example.com"
+}
+
+# Predict threat
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"event": event}
+)
+
+result = response.json()
+print(f"Threat Score: {result['threat_score']:.2f}")
+print(f"Severity: {result['severity']}")
+print(f"Recommended Action: {result['recommended_action']}")
 ```
 
 ### Docker Deployment

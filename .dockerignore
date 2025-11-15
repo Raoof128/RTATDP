@@ -1,0 +1,58 @@
+# Docker ignore file
+# Reduces build context size
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+notebooks/
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Data and models (should be mounted as volumes)
+data/
+models/
+logs/
+
+# Deployment files
+deployment/
+.github/
+docker-compose*.yml
+Dockerfile*
+!Dockerfile
+
+# Environment files
+.env*
+
+# Temporary files
+*.tmp
+*.log
+tmp/
+temp/
